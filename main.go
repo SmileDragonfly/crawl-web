@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -11,7 +12,7 @@ import (
 func main() {
 	fmt.Println("Hello")
 	// Request the html page
-	res, err := http.Get("https://truyenfull.bio")
+	res, err := http.Get("https://truyenfull.vision")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,9 +25,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sHtml, err := doc.Selection.Html()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(sHtml)
+	doc.Find("li.dropdown").Each(func(i int, s *goquery.Selection) {
+		if strings.Contains(s.Text(), "Thể loại") {
+
+		}
+	})
 }
