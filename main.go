@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,15 +11,17 @@ import (
 )
 
 type StoryInfo struct {
-	ID          int
-	Title       string
-	Image       string
-	Author      string
-	Type        string
-	Source      string
-	Status      string
-	Description string
-	Contents    string
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Image       string `json:"image"`
+	Author      string `json:"author"`
+	Type        string `json:"type"`
+	Source      string `json:"source"`
+	Status      string `json:"status"`
+	Rate        string `json:"rate"`
+	RatingCount string `json:"rating_count"`
+	Description string `json:"description"`
+	Contents    string `json:"contents"`
 }
 
 func main() {
@@ -53,7 +56,7 @@ func main() {
 	})
 	// fmt.Print(links)
 	// 2. Loop get list story in each 'the loai'
-	var storyInfo StoryInfo
+	/* Comment for fast test a story link
 	var storyLinks []string
 	for _, link := range links {
 		resLink, err := http.Get(link)
@@ -79,8 +82,9 @@ func main() {
 			}
 		})
 	}
+	*/
 	// 3. Get contents of each story in storyLinks
-	storyLink := storyLinks[0]
+	storyLink := "https://truyenfull.vision/ba-chu-thien-ha-phong-than/"
 	storyRes, err := http.Get(storyLink)
 	if err != nil {
 		log.Fatal(err)
@@ -90,6 +94,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var storyInfo StoryInfo
 	// Find title
 	storyInfo.Title = doc.Find("h3.title").Text()
 	// Find story image
@@ -123,4 +128,34 @@ func main() {
 	// Find source
 	storyInfo.Source = infoDiv.Find("span.source").Text()
 	fmt.Println("Nguồn:", storyInfo.Source)
+	// Find status
+	status := infoDiv.Find("span.text-success, span.text-primary").Text()
+	storyInfo.Status = status
+	fmt.Println("Trạng thái:", storyInfo.Status)
+	// Find rating
+	rate, exist := doc.Find("div.rate-holder").Attr("data-score")
+	if exist {
+		storyInfo.Rate = rate
+	}
+	// Find rating count
+	ratingCount := doc.Find("span[itemprop='ratingCount']").Text()
+	storyInfo.RatingCount = ratingCount
+	fmt.Println("Rating:", storyInfo.Rate, "-RatingCount:", storyInfo.RatingCount)
+	// Find description
+	description, err := doc.Find("div.desc-text").Html()
+	if err != nil {
+		log.Fatal(err)
+	}
+	description = strings.ReplaceAll(description, "<br>", "\n")
+	description = strings.ReplaceAll(description, "<br/>", "\n") // Handle self-closing <br>
+	description = strings.ReplaceAll(description, "&nbsp;", " ") // Remove any remaining HTML entities (like &nbsp;)(nbsp: non breaking space)
+	description = strings.ReplaceAll(description, "&#34;", `"`)
+	storyInfo.Description = description
+	// Convert struct to JSON
+	jsonData, err := json.MarshalIndent(storyInfo, "", "    ")
+	if err != nil {
+		fmt.Println("Error converting to JSON:", err)
+		return
+	}
+	fmt.Println(string(jsonData))
 }
