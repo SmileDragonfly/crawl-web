@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -84,7 +86,8 @@ func main() {
 	}
 	*/
 	// 3. Get contents of each story in storyLinks
-	storyLink := "https://truyenfull.vision/ba-chu-thien-ha-phong-than/"
+	// storyLink := "https://truyenfull.vision/ba-chu-thien-ha-phong-than/"
+	storyLink := "https://truyenfull.vision/chang-chat-phac-nang-xau-xi/"
 	storyRes, err := http.Get(storyLink)
 	if err != nil {
 		log.Fatal(err)
@@ -151,6 +154,85 @@ func main() {
 	description = strings.ReplaceAll(description, "&nbsp;", " ") // Remove any remaining HTML entities (like &nbsp;)(nbsp: non breaking space)
 	description = strings.ReplaceAll(description, "&#34;", `"`)
 	storyInfo.Description = description
+	// Find list page
+	// Tìm trang cuối cùng (có chữ "Cuối")
+	var lastPage int
+	var lastPageLink string
+	found := doc.Find("ul.pagination.pagination-sm li a").Each(func(index int, item *goquery.Selection) {
+		link, exists := item.Attr("href")
+		text := item.Text()
+
+		// Nếu là link trang cuối (có chữ "Cuối" hoặc số lớn nhất)
+		if exists && strings.Contains(text, "Cuối") {
+			lastPageLink = link
+			// Dùng regex để lấy số trang từ URL
+			re := regexp.MustCompile(`trang-(\d+)`)
+			match := re.FindStringSubmatch(link)
+			if len(match) > 1 {
+				lastPage, _ = strconv.Atoi(match[1])
+			}
+		}
+	})
+
+	// Find list chapter
+	var chapters []map[string]string
+	if found.Size() > 0 {
+		baseURL := strings.Replace(lastPageLink, fmt.Sprintf("trang-%d", lastPage), "trang-%d", 1)
+		for i := range lastPage {
+			pageURL := fmt.Sprintf(baseURL, i+1)
+			pageRes, err := http.Get(pageURL)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer pageRes.Body.Close()
+			pageDoc, err := goquery.NewDocumentFromReader(pageRes.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// Duyệt qua từng chương
+			pageDoc.Find(".list-chapter li a").Each(func(index int, element *goquery.Selection) {
+				// Lấy link chương
+				link, exists := element.Attr("href")
+				if !exists {
+					return
+				}
+
+				// Lấy tên chương từ `title`
+				title, _ := element.Attr("title")
+
+				// Lưu vào danh sách
+				chapters = append(chapters, map[string]string{
+					"link":  link,
+					"title": title,
+				})
+			})
+		}
+		// Duyet qua tung page
+
+	} else {
+		// Duyệt qua từng chương
+		doc.Find(".list-chapter li a").Each(func(index int, element *goquery.Selection) {
+			// Lấy link chương
+			link, exists := element.Attr("href")
+			if !exists {
+				return
+			}
+
+			// Lấy tên chương từ `title`
+			title, _ := element.Attr("title")
+
+			// Lưu vào danh sách
+			chapters = append(chapters, map[string]string{
+				"link":  link,
+				"title": title,
+			})
+		})
+	}
+
+	// Hiển thị kết quả
+	for _, chapter := range chapters {
+		fmt.Printf("Chương: %s\nLink: %s\n\n", chapter["title"], chapter["link"])
+	}
 	// Convert struct to JSON
 	jsonData, err := json.MarshalIndent(storyInfo, "", "    ")
 	if err != nil {
