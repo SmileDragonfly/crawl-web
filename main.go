@@ -177,6 +177,7 @@ func main() {
 	// Find list chapter
 	var chapters []map[string]string
 	if found.Size() > 0 {
+		// Duyet qua tung page
 		baseURL := strings.Replace(lastPageLink, fmt.Sprintf("trang-%d", lastPage), "trang-%d", 1)
 		for i := range lastPage {
 			pageURL := fmt.Sprintf(baseURL, i+1)
@@ -207,8 +208,6 @@ func main() {
 				})
 			})
 		}
-		// Duyet qua tung page
-
 	} else {
 		// Duyệt qua từng chương
 		doc.Find(".list-chapter li a").Each(func(index int, element *goquery.Selection) {
