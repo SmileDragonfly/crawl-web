@@ -126,8 +126,8 @@ func GetStoryInfoFromFile(filePath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// [Test] 100 link
-	links = links[:100]
+	// [Test] 10 link
+	links = links[:10]
 	for _, link := range links {
 		res, err := http.Get(link)
 		if err != nil {
@@ -137,6 +137,95 @@ func GetStoryInfoFromFile(filePath string) {
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		// Get all chapter content of each story
+		getChapter := func(doc *goquery.Document, storyID int) {
+			// Find list page
+			// Tìm trang cuối cùng (có chữ "Cuối")
+			var lastPage int
+			var lastPageLink string
+			found := doc.Find("ul.pagination.pagination-sm li a").Each(func(index int, item *goquery.Selection) {
+				link, exists := item.Attr("href")
+				text := item.Text()
+
+				// Nếu là link trang cuối (có chữ "Cuối" hoặc số lớn nhất)
+				if exists && strings.Contains(text, "Cuối") {
+					lastPageLink = link
+					// Dùng regex để lấy số trang từ URL
+					re := regexp.MustCompile(`trang-(\d+)`)
+					match := re.FindStringSubmatch(link)
+					if len(match) > 1 {
+						lastPage, _ = strconv.Atoi(match[1])
+					}
+				}
+			})
+			// Find list chapter
+			getChapterContent := func(doc *goquery.Document, storyID int) {
+				doc.Find(".list-chapter li a").Each(func(index int, element *goquery.Selection) {
+					// Lấy link chương
+					link, exists := element.Attr("href")
+					if !exists {
+						return
+					}
+					// Lấy tên chương từ `title`
+					title, _ := element.Attr("title")
+					// Lấy chapter number từ link
+					re := regexp.MustCompile(`/chuong-(\d+)/`)
+					matches := re.FindStringSubmatch(link)
+					chapterNumber := 0
+					if len(matches) > 1 {
+						if num, err := strconv.Atoi(matches[1]); err == nil {
+							chapterNumber = num
+						}
+					}
+					// Get content
+					res, err := http.Get(link)
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer res.Body.Close()
+					doc, err := goquery.NewDocumentFromReader(res.Body)
+					if err != nil {
+						log.Fatal(err)
+					}
+					html, err := doc.Find("#chapter-c").Html()
+					if err != nil {
+						log.Fatal(err)
+					}
+					chapter := Chapter{
+						StoryID:       storyID,
+						ChapterNumber: chapterNumber,
+						Title:         title,
+						Url:           link,
+						Content:       html,
+					}
+					err = SaveChapter(db, chapter)
+					if err != nil {
+						log.Fatal(err)
+					}
+				})
+			}
+			if found.Size() > 0 {
+				// Duyet qua tung page
+				baseURL := strings.Replace(lastPageLink, fmt.Sprintf("trang-%d", lastPage), "trang-%d", 1)
+				for i := range lastPage {
+					pageURL := fmt.Sprintf(baseURL, i+1)
+					pageRes, err := http.Get(pageURL)
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer pageRes.Body.Close()
+					pageDoc, err := goquery.NewDocumentFromReader(pageRes.Body)
+					if err != nil {
+						log.Fatal(err)
+					}
+					// Duyệt qua từng chương
+					getChapterContent(pageDoc, storyID)
+				}
+			} else {
+				getChapterContent(doc, storyID)
+			}
 		}
 
 		// Get story info then save to postgresql
@@ -191,10 +280,11 @@ func GetStoryInfoFromFile(filePath string) {
 			}
 			storyInfo.Description = description
 			// Save info to DB
-			err = SaveStory(db, storyInfo)
+			err = SaveStory(db, &storyInfo)
 			if err != nil {
 				log.Println(err)
 			}
+			getChapter(doc, storyInfo.ID)
 		}(doc)
 	}
 }
