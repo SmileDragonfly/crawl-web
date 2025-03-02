@@ -6,4 +6,8 @@ crawl web
 Utils:
 - OpenDB: connect to DB
 - GetStoryType(sourceLink)
-+ 
+# 01032025
+Luu data vao file trc
++ TypeLink.txt
++ StoryLink.txt
++ \<StoryName>/\<ChapterName>-\<ChapterNum>.txt
