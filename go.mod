@@ -2,7 +2,12 @@ module crawlweb
 
 go 1.23.1
 
-require github.com/PuerkitoBio/goquery v1.10.1
+require (
+	github.com/PuerkitoBio/goquery v1.10.1
+	github.com/lib/pq v1.10.9
+	gorm.io/driver/postgres v1.5.11
+	gorm.io/gorm v1.25.10
+)
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
@@ -16,6 +21,4 @@ require (
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	gorm.io/driver/postgres v1.5.11 // indirect
-	gorm.io/gorm v1.25.10 // indirect
 )

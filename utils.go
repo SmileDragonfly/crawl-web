@@ -128,8 +128,9 @@ func GetStoryInfoFromFile(filePath string) {
 		log.Fatal(err)
 	}
 	// [Test] 100 link
-	links = links[:100]
-	for _, link := range links {
+	//links = links[:100]
+	for i, link := range links {
+		fmt.Printf("[%d]Crawling story %s\n", i, link)
 		res, err := http.Get(link)
 		if err != nil {
 			log.Fatal(err)
@@ -160,24 +161,22 @@ func GetStory(doc *goquery.Document, db *gorm.DB) {
 	storyInfo.Author = authorName
 	storyInfo.AuthorUrl = authorLink
 	// Find type
-	var sType string
+	var sType []string
 	infoDiv := doc.Find("div.info")
-	if infoDiv.Length() == 0 {
-		fmt.Println("Không tìm thấy thẻ <div class='info'>")
-		return
+	if infoDiv.Length() > 0 {
+		infoDiv.Find("a[itemprop='genre']").Each(func(i int, s *goquery.Selection) {
+			//fmt.Println("Genre:", s.Text())
+			sType = append(sType, s.Text())
+		})
+		storyInfo.Type = sType
+		// Find source
+		storyInfo.Source = infoDiv.Find("span.source").Text()
+		//fmt.Println("Nguồn:", storyInfo.Source)
+		// Find status
+		status := infoDiv.Find("span.text-success, span.text-primary").Text()
+		storyInfo.Status = status
 	}
-	infoDiv.Find("a[itemprop='genre']").Each(func(i int, s *goquery.Selection) {
-		fmt.Println("Genre:", s.Text())
-		sType += s.Text()
-	})
-	storyInfo.Type = sType
-	// Find source
-	storyInfo.Source = infoDiv.Find("span.source").Text()
-	fmt.Println("Nguồn:", storyInfo.Source)
-	// Find status
-	status := infoDiv.Find("span.text-success, span.text-primary").Text()
-	storyInfo.Status = status
-	fmt.Println("Trạng thái:", storyInfo.Status)
+	//fmt.Println("Trạng thái:", storyInfo.Status)
 	// Find rating
 	rate, exist := doc.Find("div.rate-holder").Attr("data-score")
 	if exist {
@@ -186,7 +185,7 @@ func GetStory(doc *goquery.Document, db *gorm.DB) {
 	// Find rating count
 	ratingCount := doc.Find("span[itemprop='ratingCount']").Text()
 	storyInfo.RatingCount = ratingCount
-	fmt.Println("Rating:", storyInfo.Rate, "-RatingCount:", storyInfo.RatingCount)
+	//fmt.Println("Rating:", storyInfo.Rate, "-RatingCount:", storyInfo.RatingCount)
 	// Find description
 	description, err := doc.Find("div.desc-text").Html()
 	if err != nil {
@@ -241,6 +240,7 @@ func GetChapter(doc *goquery.Document, storyID int, db *gorm.DB) {
 					chapterNumber = num
 				}
 			}
+			fmt.Printf("[%d]Crawling chapter %s\n", chapterNumber, link)
 			// Get content
 			res, err := http.Get(link)
 			if err != nil {
